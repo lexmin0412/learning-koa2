@@ -1,5 +1,6 @@
 const Koa = require('koa');
 const timeFormat = require('./utils/timeFormat')
+const Request = require('request')
 const app = new Koa({
     proxy: true
 });
@@ -14,10 +15,40 @@ app.use(async (ctx, next) => {
 
     // logger reqeust
     const request = ctx.request
-    // console.log('request.path', request.path)
+    console.log('request.path', request.path)
     // console.log('request.protocol', request.protocol)
     // console.log('ctx.req', ctx.req)
     // console.log('ctx.request', ctx.request)
+
+
+	const { path } = ctx.request
+
+	// 路由判断
+	if ( path === '/github/user/lexmin' ) {
+		console.log('获取个人信息')
+		ctx.set('x-your-path', 'success')
+
+		const requestPromise = new Promise((resolve, reject)=>{
+			Request({
+				url: 'https://api.github.com/users/lexmin0412',
+				method: "GET",
+				json: true,
+				headers: {
+					"content-type": "application/json",
+					"user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36"
+				}
+			}, function(error, response, body) {
+				console.log('github api返回结果', body);
+				// if (!error && response.statusCode == 200) {
+				// 	console.log(body) // 请求成功的处理逻辑
+				// }
+				resolve(body)
+			});
+		})
+		const result = await requestPromise
+		ctx.body = result
+		console.log('结果结果', result);
+	}
 
     const rt = ctx.response.get('X-Response-Time');
     const traceId = ctx.response.get('x-trace-id');
@@ -33,6 +64,7 @@ app.use(async (ctx, next) => {
     ctx.set('X-Response-Time', `${ms}ms`);
     ctx.set('X-trace-id', Math.random())
     ctx.set('X-Server-Start-Time', `${timeFormat(ctx.startTime)}`)
+	ctx.set('Access-Control-Allow-Origin', '*')  // 允许跨域
     ctx.set('ETag', '123');
     ctx.cookies.set('testCookieName', 'testCookieValue')
 });
@@ -52,7 +84,7 @@ app.use(async ctx => {
         ctx.status = 304;
         return;
       }
-    ctx.body = 'Hello World';
+
     ctx.response.set('test', 123)
 });
 
@@ -62,6 +94,4 @@ app.on('error', (err, ctx) => {
 });
 
 // 可同时监听多个端口
-app.listen(3000);
-app.listen(3001)
 app.listen(3002)
